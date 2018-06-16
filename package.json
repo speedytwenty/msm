@@ -32,5 +32,9 @@
   "scripts": {
     "start": "export TZ='UTC'; ./node_modules/.bin/forever start index.js",
     "start-dev": "export TZ='UTC'; ./node_modules/.bin/forever -c './node_modules/.bin/nodemon --exitcrash --inspect=0.0.0.0:9229' index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/speedytwenty/msm.git"
   }
 }
