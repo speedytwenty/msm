@@ -1,7 +1,7 @@
 {
   "name": "msm",
   "description": "MongoDB Schema Manager Client",
-  "version": "0.1",
+  "version": "0.0.1",
   "author": "Chris Lee <speedytwenty@gmail.com>",
   "dependencies": {
     "async-eval": "^0.1.5",
