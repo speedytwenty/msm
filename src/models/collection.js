@@ -41,6 +41,7 @@ var CollectionSchemaFactory = function (mongoose, msm) {
     source: {
       type: String,
       default: null,
+      index: true,
     },
     schemaFields: {
       type: "Mixed",
@@ -48,7 +49,7 @@ var CollectionSchemaFactory = function (mongoose, msm) {
     meta: {
       type: "Mixed",
     },
-    dependencies: [],
+    dependencies: { type: Array, index: true },
     eval: {
       type: "Mixed",
     },
@@ -85,6 +86,65 @@ var CollectionSchemaFactory = function (mongoose, msm) {
     obj._id = id;
     obj.save(() => { callback(obj); });
   }
+  CollectionSchema.statics.sortByDependencies = sortByDependencies;
+  CollectionSchema.statics.renameCollection = async function (sourceId, destinationCollectionName, dropSource = true) {
+    if (!destinationCollectionName) {
+      throw new Error('Rename Error: Missing destinationCollectionName.');
+    }
+    var document = await this.findOne({ _id: sourceId});
+    if (!document) {
+      throw new Error('Rename Error: Source collection ('+sourceId+') does not exist.');
+    }
+    var sourceCollectionName = document.collectionName;
+    var prefix = sourceId.split(':')[0];
+    var destinationId = [document.databaseName, destinationCollectionName].join(':');
+    var destinationExists = await this.count({_id: destinationId});
+    if (destinationExists) {
+      throw new Error('Rename Error: Destination collection ('+destinationId+') already exists!');
+    }
+    document._id = destinationId;
+    document.collectionName = destinationCollectionName;
+    document.isNew = true;
+    await document.save();
+
+    if (dropSource) {
+      var colDocs = await this.find({source: sourceId})
+      var num = colDocs.length;
+      for (var n = 0; n < num; n++) {
+        var colDoc = colDocs[n];
+        colDoc.source = destinationId;
+        if (colDoc.eval && colDoc.eval.code) {
+          colDoc.eval.code = stringReplace(colDoc.eval.code, sourceId, destinationId);
+          colDoc.eval.code = stringReplace(colDoc.eval.code, sourceCollectionName, destinationCollectionName);
+          colDoc.markModified('eval.code');
+        }
+        await colDoc.save();
+      }
+      colDocs = await this.find({dependencies: sourceId})
+      num = colDocs.length;
+      for (var n = 0; n < num; n++) {
+        var colDoc = colDocs[n];
+        var newDeps = [];
+        colDoc.dependencies.forEach(function (dependency, idx) {
+          if (dependency == sourceId) {
+            newDeps.push(destinationId);
+          }
+          else newDeps.push(dependency);
+        });
+        colDoc.dependencies = newDeps;
+        if (colDoc.eval && colDoc.eval.code) {
+          colDoc.eval.code = stringReplace(colDoc.eval.code, sourceId, destinationId);
+          colDoc.eval.code = stringReplace(colDoc.eval.code, sourceCollectionName, destinationCollectionName);
+          colDoc.markModified('eval.code');
+        }
+        await colDoc.save();
+      }
+      await this.deleteOne({_id: sourceId});
+    }
+    await msm.models.CollectionTest.renameCollection(sourceId, destinationCollectionName, dropSource);
+    await this.db.client.db(document.databaseName).renameCollection(sourceCollectionName, destinationCollectionName, {dropTarget: dropSource});
+    return destinationId;
+  }
 
   CollectionSchema.statics.createIdentifier = function (collection) {
     return [collection.database.id, collection.collectionName].join();
@@ -105,7 +165,7 @@ var CollectionSchemaFactory = function (mongoose, msm) {
       query.exec(function (err, docs) {
         callback(null, {
           total: count,
-          collections: docs,
+          collections: sortByDependencies(docs, false),
         });
       });
     }.bind(this));
@@ -154,7 +214,6 @@ var CollectionSchemaFactory = function (mongoose, msm) {
             result.schema = Schema.projectSchema(params.project, result.schema);
         }
         if (params.sort) {
-            console.log(params.sort);
             cursor.sort(params.sort);
         }
         if (params.skip) {
@@ -177,7 +236,7 @@ var CollectionSchemaFactory = function (mongoose, msm) {
         }
 
         if (this.postExecute) {
-            eval('var postExecute = function (document, collection, params, result) { ' + this.postExecute + ' }');
+            eval('var postExecute = async function (document, collection, params, result) { ' + this.postExecute + ' };');
             await postExecute(this, col, params, result);
         }
         result.ok = 1;
@@ -243,6 +302,57 @@ var CollectionSchemaFactory = function (mongoose, msm) {
 
   //CollectionSchema.plugin(require('mongoose-diff-history/diffHistory').plugin);
   return CollectionSchema;
+}
+
+function sortByDependencies(collections, desc = false) {
+  var index = {};
+  var visited = {};
+  var sortedArr = [];
+  function visit(indexItem) {
+    var indexId = indexItem.id;
+    if (typeof visited[indexId] === 'undefined') {
+      visited[indexId] = 1;
+      indexItem.dependencies.forEach(function (dependency) {
+        if (typeof index[indexId]  === 'undefined') {
+          console.log('Collection %s has a missing dependency: %s', indexId, dependency);
+          return;
+        }
+        visit(index[dependency]);
+      });
+      sortedArr.push(indexItem);
+    }
+  }
+  var index = {};
+  var numI = collections.length;
+  collections.forEach(function (collection, idx) {
+    var indexItem = { id: collection._id, dependencies: [], sourceIdx: idx, enabled: collection.enabled };
+    if (collection.source) {
+      indexItem.dependencies.push(collection.source);
+    }
+    if (collection.dependencies) {
+      collection.dependencies.forEach(function (dependency) {
+        indexItem.dependencies.push(typeof dependency === 'string' ? dependency : dependency._id);
+      });
+    }
+    index[collection._id] = indexItem;
+  });
+
+  for (var id in index) {
+    visit(index[id]);
+  }
+
+  var sortedResult = [];
+  sortedArr.forEach(function (indexItem) {
+    if (desc) {
+      sortedResult.unshift(collections[indexItem.sourceIdx]);
+    }
+    else sortedResult.push(collections[indexItem.sourceIdx]);
+  });
+  return sortedResult;
+}
+
+function stringReplace(string, subject, replacement) {
+  return string.replace(new RegExp(subject, 'g'), replacement);
 }
 
 module.exports = function (mongoose, msm) {

@@ -137,9 +137,23 @@ var evalTestUnit = async function (testUnit, testDoc) {
             else: 0
           }}};
         },
+        sumExistsAsArrayWithValues: function (val) { return { '$sum': { '$cond': {
+          if: {'$and': [val, { '$ne': [{ '$type': val}, 'array'] }, {'$lte': [{'$size': val}, 0]}]}, 
+            then: 1,
+            else: 0
+          }}};
+        },
         sumNotObject: function (val) { return { '$sum': { '$cond': { if: { '$ne': [{ '$type': val}, 'object'] }, then: 1, else: 0 } } }; },
         sumExistsAsDate: function (val) { return { '$sum': { '$cond': {
             if: {'$and': [val, { '$ne': [{ '$type': val}, 'date'] }]}, 
+            then: 1,
+            else: 0
+          }}};
+        },
+        sumExistsAsValidDate: function (val, md = null) {
+          md = md ? md : new Date(1000); // 1970-01-01T00:00:01 - Detect empty dates
+          return { '$sum': { '$cond': {
+            if: {'$and': [val, { '$ne': [{ '$type': val}, 'date'] }, { '$lte': [val, md] }] },
             then: 1,
             else: 0
           }}};
@@ -224,6 +238,20 @@ var CollectionTestSchemaFactory = function (msm) {
     }
   }, { collection: 'msm_tests' });
 
+  CollectionTestSchema.statics.renameCollection = async function (sourceId, destinationCollectionName, dropSource = true) {
+    var document = await this.findOne({_id: sourceId});
+    if (document) {
+      var destinationId = document.databaseName +':'+destinationCollectionName;
+      document._id = destinationId;
+      document.isNew = true;
+      document.collectionName = destinationCollectionName;
+      await document.save();
+      if (dropSource) {
+        await this.deleteOne({_id: sourceId});
+      }
+      return destinationId;
+    }
+  }
   //CollectionTestSchema.plugin(require('mongoose-diff-history/diffHistory').plugin);
   CollectionTestSchema.methods.runTest = async function (msm, lockOnPass = false, verbose = false) {
     this.last = new Date;

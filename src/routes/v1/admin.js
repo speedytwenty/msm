@@ -22,6 +22,7 @@ router.delete('/databsae/:id', databasesAdmin.delete);
 
 router.put('/collection/:id', collectionsAdmin.create);
 router.post('/collection/:id/create', collectionsAdmin.create);
+router.get('/collection/:id/rename', collectionsAdmin.renameCollection);
 router.post('/collection/:id', collectionsAdmin.update);
 router.post('/collection/:id/process', collectionsAdmin.saveAndProcess);
 router.post('/collection/:id/analyze', collectionsAdmin.analyze);

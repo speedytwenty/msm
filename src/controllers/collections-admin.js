@@ -41,12 +41,12 @@ var controller = module.exports = {
         else res.send({ok: 1});
       });
     });
-
   },
   analyze: async function (req, res) {
     var collection = await req.mongoSchemaManager.models.Collection.findById(req.params.id); 
     var options = req.body || {};
     collection.analyze(options);
+    res.json({ok: 1});
   },
   overwriteSchema: function (req, res) {
     req.mongoSchemaManager.models.Collection.update({_id: req.params.id}, {'$set': { schemaFields: req.body }}, function (err, result) {
@@ -95,7 +95,6 @@ var controller = module.exports = {
   },
   runTests: async function (req, res) {
     var query = req.query ? req.query : {};
-    req.enabled = true;
     var testDocs = await req.mongoSchemaManager.models.CollectionTest.find(query);
     var num = testDocs.length;
     res.send({ok:1});
@@ -124,6 +123,16 @@ var controller = module.exports = {
       var testDoc = await req.mongoSchemaManager.models.CollectionTest.findById(req.params.id);
       var result = await testDoc.runTest();
       res.json({ok: 1, result: result});
+    }
+    catch (err) {
+      res.json({ok: 0, error: err.message});
+      return;
+    }
+  },
+  renameCollection: async function (req, res) {
+    try {
+      var newId = await req.mongoSchemaManager.models.Collection.renameCollection(req.params.id, req.query.newName);
+      res.json({ok: 1, id: newId});
     }
     catch (err) {
       res.json({ok: 0, error: err.message});

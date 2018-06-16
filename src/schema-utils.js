@@ -198,7 +198,7 @@ var analyzeSchema = function (con, dbName, colName, options) {
     var schemaDatabase = 'varietyResults';
     var schemaCollection = dbName + '.' + colName + '.schemaFields';
     options = Object.assign({
-        limit: 100,
+        //limit: 100,
         persistResults: true,
         resultsCollection: schemaCollection,
     }, options);

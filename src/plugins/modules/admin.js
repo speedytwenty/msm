@@ -10,7 +10,7 @@ class AdminModule extends Module {
     this.basePath = msm.config.get('Admin.basePath');
   }
   init (msm, next) {
-    msm.app.use(msm.kernel.bodyParser.json());
+    msm.app.use(msm.kernel.bodyParser.json({limit: '1mb'}));
     msm.app.use('/v1/admin', require('../../routes/v1/admin'));
   }
 }

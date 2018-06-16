@@ -13,7 +13,7 @@ CollectionProcess.prototype.runAll = async function () {
     try {
         while (this.runAllNext()) {
             //await this.storageCollection.save({collectionId: this.collectionId});
-            var cp = new CollectionProcess(this.collectionId, this.databaseWrapper, this.databaseProvider, this.collectionProvider);
+            var cp = new CollectionProcess(this.collectionId, this.msm);
             await cp.run();
             //this.storageCollection.remove({collectionId: this.collectionId});
         }
@@ -106,6 +106,7 @@ CollectionProcess.prototype.startRun = async function () {
     }
     //this.items.sort(function (a, b) { return a.weight - b.weight; });
     this.items = SortProcessesByDependencies(this.items);
+    console.log(this.items);
     for (var i = 0; i < this.items.length; i++) {
         console.log(i + ': %s (%d)', this.items[i]._id, this.items[i].dependencies.length);
     }
@@ -259,6 +260,10 @@ var Visit = function (item, visited, sorted, collections) {
         var numD = item.dependencies.length;
         for (var d = 0; d < numD; d++) {
             var dep = item.dependencies[d];
+            if (typeof collections[dep] === 'undefined') {
+              console.log('The '+itemId+' collection\'s dependency '+dep+' is missing.');
+              continue;
+            }
             Visit(collections[dep], visited, sorted, collections);
         }
         sorted.push(item);
