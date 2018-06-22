@@ -179,7 +179,15 @@ var CollectionSchemaFactory = function (mongoose, msm) {
     if (!this.created) this.created = new Date;
     next();
   });
-
+  CollectionSchema.methods.getClient = function () {
+    return this.db.client;
+  }
+  CollectionSchema.methods.getDatabase = function () {
+    return this.getClient().db(this.databaseName);
+  }
+  CollectionSchema.methods.getCollection = function () {
+    return this.getDatabase().collection(this.collectionName);
+  }
 	CollectionSchema.methods.query = async function (params, callback) {
     params = Object.assign({}, {
         query: {},
