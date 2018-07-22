@@ -3,7 +3,6 @@ var Promise = require('promise');
 var CollectionProcess = function (collectionId, msm) {
   this.msm = msm;
   this.collectionId = collectionId;
-  this.settings = msm.settings;
 }
 
 CollectionProcess.prototype.runAll = async function () {
@@ -158,9 +157,6 @@ CollectionProcess.prototype.run = async function (options = {}) {
     var instance = this;
     var msm = this.msm;
     let con = this.msm.models.Collection.db.client;
-    if (this.settings.collectionpreprocess) {
-        eval(this.settings.collectionpreprocess);
-    }
     if (instance.source) {
         var sourceDatabaseName = instance.source.databaseName;
         var sourceDatabase = con.db(sourceDatabaseName);

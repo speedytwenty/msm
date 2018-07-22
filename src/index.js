@@ -1,7 +1,7 @@
 var EventEmitter = require('events');
 
-function MongoSchemaManager() {
-  this.boot();
+function MongoSchemaManager(modules = []) {
+  this.boot(modules);
 }
 MongoSchemaManager.prototype = Object.create(EventEmitter.prototype);
 MongoSchemaManager.prototype.constructor = MongoSchemaManager;
@@ -9,11 +9,11 @@ MongoSchemaManager.prototype.constructor = MongoSchemaManager;
 MongoSchemaManager.kernel = require('./kernel');
 MongoSchemaManager.config = MongoSchemaManager.kernel.config;
 
-MongoSchemaManager.prototype.boot = async function () {
+MongoSchemaManager.prototype.boot = async function (modules) {
   this.kernel = MongoSchemaManager.kernel;
   this.config = MongoSchemaManager.config;
   this.plugins = {};
-  this.plugins = require('./plugins')(this);
+  this.plugins = require('./plugins')(this, modules);
   this.schema = require('./schema');
   await this.triggerEvent('boot');
 }
@@ -29,18 +29,10 @@ MongoSchemaManager.prototype.init = async function (data) {
   process.on('unhandledRejection', function(reason, p) {
     console.log("Unhandled Rejection:", reason.stack);
   });
-
-  this.settings = await this.models.Setting.loadAll();
-  if (this.settings.evaloninit) {
-    await this.eval(this.settings.evaloninit);
-  }
   await this.triggerEvent('init');
 }
 
 MongoSchemaManager.prototype.ready = async function (data) {
-  if (this.settings.evalonready) {
-    await this.eval(this.settings.evalonready);
-  }
   await this.triggerEvent('ready');
 }
 
