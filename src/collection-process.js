@@ -1,4 +1,5 @@
 var Promise = require('promise');
+var moment = require('moment');
 
 var CollectionProcess = function (collectionId, msm) {
   this.msm = msm;
@@ -11,6 +12,7 @@ CollectionProcess.prototype.runAll = async function () {
     console.log('Getting next item..');
     try {
         while (this.runAllNext()) {
+            var start = moment();
             //await this.storageCollection.save({collectionId: this.collectionId});
             var cp = new CollectionProcess(this.collectionId, this.msm);
             await cp.run();
@@ -19,7 +21,6 @@ CollectionProcess.prototype.runAll = async function () {
     }
     catch (err) {
         console.log('Error: %s', err);
-        console.log(err);
         if (this.collectionId) {
             //this.storageCollection.remove({collectionId: this.collectionId});
             this.collection = null;
@@ -131,6 +132,7 @@ CollectionProcess.prototype.runAllNext = function () {
 }
 
 CollectionProcess.prototype.run = async function (options = {}) {
+    var start = moment();
     console.log('Processing collection: %s', this.collectionId);
     options = Object.assign({analyzeSchema: false}, options);
     var startMillis = Date.now();
@@ -191,6 +193,7 @@ CollectionProcess.prototype.run = async function (options = {}) {
     }
     var callback = async function (err, res) {
         if (err) {
+            console.log(err);
             console.log('Failed to process %s: %s', instance.collection._id, err);
             //con.close();
         }
@@ -209,8 +212,10 @@ CollectionProcess.prototype.run = async function (options = {}) {
             instance.collection.millisProcessed += 1*(Date.now() - startMillis);
             console.log(instance.collection.millisProcessed);
             await instance.collection.save();
-            console.log('Successfully processed collection: ', instance.collection._id);
             //con.close();
+            var end = moment();
+            var seconds = moment.duration(end.diff(start)).asSeconds();
+            console.log('Successfully processed collection: '+ instance.collection._id + '('+seconds+')');
         }
     }
     switch (instance.collection.type) {

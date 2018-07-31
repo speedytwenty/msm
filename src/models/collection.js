@@ -145,7 +145,15 @@ var CollectionSchemaFactory = function (mongoose, msm) {
     await this.db.client.db(document.databaseName).renameCollection(sourceCollectionName, destinationCollectionName, {dropTarget: dropSource});
     return destinationId;
   }
-
+  CollectionSchema.methods.getClient = function () {
+    return this.db.client;
+  }
+  CollectionSchema.methods.getDatabase = function () {
+    return this.getClient().db(this.databaseName);
+  }
+  CollectionSchema.methods.getCollection = function () {
+    return this.getDatabase().collection(this.collectionName);
+  }
   CollectionSchema.statics.createIdentifier = function (collection) {
     return [collection.database.id, collection.collectionName].join();
   }
@@ -179,15 +187,7 @@ var CollectionSchemaFactory = function (mongoose, msm) {
     if (!this.created) this.created = new Date;
     next();
   });
-  CollectionSchema.methods.getClient = function () {
-    return this.db.client;
-  }
-  CollectionSchema.methods.getDatabase = function () {
-    return this.getClient().db(this.databaseName);
-  }
-  CollectionSchema.methods.getCollection = function () {
-    return this.getDatabase().collection(this.collectionName);
-  }
+
 	CollectionSchema.methods.query = async function (params, callback) {
     params = Object.assign({}, {
         query: {},
