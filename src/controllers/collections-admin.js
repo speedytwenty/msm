@@ -57,6 +57,10 @@ var controller = module.exports = {
   mergeSchema: function (req, res) {
   },
   process: function (req, res) {
+    var CollectionProcess = require('../collection-process');
+    var collectionProcess = new CollectionProcess(req.params.id, req.mongoSchemaManager);
+    collectionProcess.run({analyzeSchema: req.query.analyzeSchema || false});
+    res.send({ok: 1});
   },
   getDependencies: function (req, res) {
     var id = req.params.id;
